@@ -5,7 +5,7 @@ from PIL import Image
 from streamlit_image_coordinates import streamlit_image_coordinates
 
 st.title("RGB Viewer")
-uploaded_file = st.file_uploader("Unggah Gambar:", type = [png, jpg, jepg])
+uploaded_file = st.file_uploader("Unggah Gambar:", type = ['png', 'jpg', 'jpeg'])
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
