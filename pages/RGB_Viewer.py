@@ -26,7 +26,7 @@ if uploaded_file is not None:
         st.success(f"Koordinat gambar yang dipilih: x = {x}, y = {y}")
 
         if y < img_array.shape[0] and x < img_array.shape[1]:
-            r, g, b = image_array[y, x][:3]
+            r, g, b = img_array[y, x][:3]
             st.write(f"Ukuran pixel RGB pada koordinat tersebut adalah ({r}, {g}, {b})")
             st.markdown(f"<div style = 'width : 100px; height : 100px; background-color : rgb({r},{g},{b});border : 1px solid #000'></div>",
                         unsafe_allow_html=True)
