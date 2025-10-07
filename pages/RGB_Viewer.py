@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from PIL import image
+from PIL import Image
 from streamlit_image_coordinates import streamlit_image_coordinates
 
 st.title("RGB Viewer")
