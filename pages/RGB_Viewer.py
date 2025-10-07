@@ -16,7 +16,7 @@ if uploaded_file is not None:
     pixels = [[f'{r}, {g}, {b}' for r,g,b in row] for row in img_array[:,:,:3]]
     df_full = pd.DataFrame(pixels)
     st.write('Tabel seluruh pixel RGB:')
-    st.dataframe(df_full, user_container_width = True)
+    st.dataframe(df_full, use_container_width = True)
 
     st.write("Klik pada area gambar untuk melihat ukuran pixel RGB:")
     coords = streamlit_image_coordinates(image)
