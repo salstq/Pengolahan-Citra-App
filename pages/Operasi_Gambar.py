@@ -205,22 +205,19 @@ else:
             st.image(img1, caption=f"Input 1 — size: {img1.size}", use_column_width=True)
         with c2:
             st.image(img2, caption=f"Input 2 — size: {img2.size}", use_column_width=True)
+        st.subheader("Tabel RGB - Input 1 (FULL)")
+        df1 = rgb_table_full(arr1)
+        st.dataframe(df1, use_container_width=True)
+
+        st.subheader("Tabel RGB - Input 2 (FULL)")
+        df2 = rgb_table_full(arr2)
+        st.dataframe(df2, use_container_width=True)
     else:
         st.image(img1, caption=f"Input — size: {img1.size}", use_column_width=True)
+        st.subheader("Tabel RGB - Sebelum (FULL)")
+        df_before = rgb_table_full(arr1)
+        st.dataframe(df_before, use_container_width=True)
 
-    # Clickable coordinate for single-image ops
-    if operation in ["Grayscale (1 gambar)", "Brightening (1 gambar)", "Geometri (Rotasi / Flipping) (1 gambar)"]:
-        st.markdown("**Klik pada gambar untuk melihat koordinat & RGB**")
-        coords = streamlit_image_coordinates(img1, key="op_click")
-        if coords is not None:
-            x, y = int(coords["x"]), int(coords["y"])
-            st.success(f"Koordinat yang diklik: (x={x}, y={y})")
-            rgb_val = rgb_at_coord(arr1, x, y)
-            if rgb_val is not None:
-                st.write(f"RGB = {rgb_val}")
-                st.markdown(f"<div style='width:60px;height:60px;background-color:rgb{rgb_val};border:1px solid #000'></div>", unsafe_allow_html=True)
-                st.write("Area sekitar (radius=2):")
-                st.dataframe(small_neighborhood_df(arr1, x, y, radius=2), use_container_width=True)
 
     # Process button
     if st.button("Proses"):
@@ -243,10 +240,6 @@ else:
                 st.subheader("Gambar Hasil — Grayscale")
                 st.image(result_img, use_column_width=True)
 
-                st.subheader("Tabel RGB - Sebelum (FULL)")
-                df_before = rgb_table_full(arr1)
-                st.dataframe(df_before, use_container_width=True)
-
                 st.subheader("Tabel RGB - Sesudah (FULL)")
                 df_after = rgb_table_full(result_arr)
                 st.dataframe(df_after, use_container_width=True)
@@ -256,10 +249,6 @@ else:
                 result_img = array_to_image(result_arr)
                 st.subheader(f"Gambar Hasil — Brightening (factor={bright_factor})")
                 st.image(result_img, use_column_width=True)
-
-                st.subheader("Tabel RGB - Sebelum (FULL)")
-                df_before = rgb_table_full(arr1)
-                st.dataframe(df_before, use_container_width=True)
 
                 st.subheader("Tabel RGB - Sesudah (FULL)")
                 df_after = rgb_table_full(result_arr)
@@ -279,10 +268,6 @@ else:
                 st.subheader(f"Gambar Hasil — Geometri (rot={rotate_deg}, flip={flip_mode})")
                 st.image(result_img, use_column_width=True)
 
-                st.subheader("Tabel RGB - Sebelum (FULL)")
-                df_before = rgb_table_full(arr1)
-                st.dataframe(df_before, use_container_width=True)
-
                 st.subheader("Tabel RGB - Sesudah (FULL)")
                 df_after = rgb_table_full(result_arr)
                 st.dataframe(df_after, use_container_width=True)
@@ -295,15 +280,7 @@ else:
                 with c1: st.image(img1, caption="Input 1", use_column_width=True)
                 with c2: st.image(img2, caption="Input 2", use_column_width=True)
                 with c3: st.image(result_img, caption="Hasil", use_column_width=True)
-
-                st.subheader("Tabel RGB - Input 1 (FULL)")
-                df1 = rgb_table_full(arr1)
-                st.dataframe(df1, use_container_width=True)
-
-                st.subheader("Tabel RGB - Input 2 (FULL)")
-                df2 = rgb_table_full(arr2)
-                st.dataframe(df2, use_container_width=True)
-
+                
                 st.subheader("Tabel RGB - Hasil (FULL)")
                 dfres = rgb_table_full(result_arr)
                 st.dataframe(dfres, use_container_width=True)
@@ -316,14 +293,6 @@ else:
                 with c1: st.image(img1, caption="Input 1", use_column_width=True)
                 with c2: st.image(img2, caption="Input 2", use_column_width=True)
                 with c3: st.image(result_img, caption="Hasil", use_column_width=True)
-
-                st.subheader("Tabel RGB - Input 1 (FULL)")
-                df1 = rgb_table_full(arr1)
-                st.dataframe(df1, use_container_width=True)
-
-                st.subheader("Tabel RGB - Input 2 (FULL)")
-                df2 = rgb_table_full(arr2)
-                st.dataframe(df2, use_container_width=True)
 
                 st.subheader("Tabel RGB - Hasil (FULL)")
                 dfres = rgb_table_full(result_arr)
