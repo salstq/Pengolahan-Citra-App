@@ -141,9 +141,6 @@ st.markdown(
     """
 )
 
-st.sidebar.markdown("## Pengaturan")
-st.sidebar.write("Pastikan gambar tidak terlalu besar jika ingin melihat tabel RGB full (besar = lambat/makan memori).")
-
 # Operation selector
 operation = st.selectbox("Pilih operasi:", [
     "Grayscale (1 gambar)",
@@ -413,16 +410,3 @@ else:
                 except Exception as e:
                     st.error(f"Gagal membuat CSV: {e}")
 
-# -------------------------
-# Requirements hint (sidebar)
-# -------------------------
-st.sidebar.markdown("---")
-st.sidebar.write("Requirements (example):")
-st.sidebar.code("""streamlit
-pillow
-numpy
-pandas
-""")
-st.sidebar.write("Notes:")
-st.sidebar.write("- Tabel RGB full akan menampilkan seluruh pixel (dalam format biner 8-bit) dan dapat memakan banyak memori dan waktu render di browser.")
-st.sidebar.write("- Untuk operasi dua gambar, aplikasi **TIDAK** meresize otomatis. Upload gambar dengan ukuran yang sama.")
