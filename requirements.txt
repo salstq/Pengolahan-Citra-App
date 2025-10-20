@@ -4,3 +4,4 @@ numpy
 pandas
 streamlit-image-coordinates
 matplotlib.pyplot
+io
