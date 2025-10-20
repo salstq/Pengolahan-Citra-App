@@ -3,3 +3,4 @@ Pillow
 numpy
 pandas
 streamlit-image-coordinates
+matplotlib.pyplot
