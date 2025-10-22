@@ -190,7 +190,7 @@ else:
 
             # Show histogram numeric table (few values) and full as downloadable CSV
             hist_df = pd.DataFrame({'intensity': np.arange(256), 'count': hist_gray})
-            st.dataframe(hist_df.head(20))
+            st.dataframe(hist_df.head(255))
             csv = hist_df.to_csv(index=False).encode('utf-8')
             st.download_button("Download Histogram Grayscale CSV", data=csv, file_name='hist_gray.csv', mime='text/csv')
 
