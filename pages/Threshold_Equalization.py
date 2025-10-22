@@ -181,12 +181,12 @@ else:
             top_r = np.argmax(r_hist)
             top_g = np.argmax(g_hist)
             top_b = np.argmax(b_hist)
-            st.write(f"Top intensities — R: {top_r}, G: {top_g}, B: {top_b}")
+            st.write(f"Top intensitas — R: {top_r}, G: {top_g}, B: {top_b}")
         with d2:
             st.caption("Histogram Grayscale")
             st.pyplot(fig_gray)
             st.write(peak_info)
-            st.write(f"Computed threshold (midpoint): {threshold}")
+            st.write(f"Perhitungan threshold (midpoint): {threshold}")
 
             # Show histogram numeric table (few values) and full as downloadable CSV
             hist_df = pd.DataFrame({'intensity': np.arange(256), 'count': hist_gray})
@@ -206,7 +206,7 @@ else:
             st.pyplot(fig)
 
             # show small stats
-            st.write(f"Mean before: {np.mean(gray):.2f} — Mean after: {np.mean(eq_gray):.2f}")
+            st.write(f"Mean sebelum: {np.mean(gray):.2f} — Mean sesudah: {np.mean(eq_gray):.2f}")
 
         # Downloads for images
         st.markdown('---')
