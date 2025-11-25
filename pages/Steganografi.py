@@ -65,10 +65,8 @@ def hs_embed(image, text):
     if len(bits) > len(flat):
         raise ValueError("Payload terlalu besar!")
 
-    # shift all blue pixel values
     flat = np.where(flat > 200, flat, flat + 1)
 
-    # embed in LSB
     for i, bit in enumerate(bits):
         flat[i] = (flat[i] & 0xFE) | int(bit)
 
@@ -112,7 +110,6 @@ def pvd_embed(image, text):
         p1, p2 = flat[i], flat[i + 1]
         diff = abs(int(p1) - int(p2))
 
-        # determine number of bits can embed
         if diff < 16:
             k = 3
         elif diff < 32:
@@ -127,7 +124,6 @@ def pvd_embed(image, text):
         bit_index += k
         value = int(segment, 2)
 
-        # modify p1 to encode
         if p1 > p2:
             p1_new = p1 + value
         else:
@@ -148,7 +144,6 @@ def pvd_extract(image):
         p1, p2 = flat[i], flat[i + 1]
         diff = abs(int(p1) - int(p2))
 
-        # bits based on diff range
         if diff < 16:
             k = 3
         elif diff < 32:
@@ -160,7 +155,6 @@ def pvd_extract(image):
         segment = format(val, f'0{k}b')
         bits += segment
 
-        # decode when enough for 8 bits
         if len(bits) >= 8:
             char = chr(int(bits[:8], 2))
             bits = bits[8:]
@@ -191,12 +185,16 @@ if uploaded:
 
         if st.button("Embed LSB"):
             stego = lsb_embed(img, text)
+            st.session_state["lsb"] = stego
             st.image(stego, caption="Citra Stego (LSB)", use_column_width=True)
             st.download_button("Download Hasil", image_to_bytes(stego), "lsb_stego.png")
 
         if st.button("Extract LSB"):
-            extracted = lsb_extract(img)
-            st.success(extracted)
+            if "lsb" in st.session_state:
+                extracted = lsb_extract(st.session_state["lsb"])
+                st.success(extracted)
+            else:
+                st.error("Belum ada citra stego!")
 
     # ----------------------------------------------------------
     # TAB 2 — HISTOGRAM SHIFTING
@@ -206,12 +204,16 @@ if uploaded:
 
         if st.button("Embed HS"):
             stego = hs_embed(img, text)
+            st.session_state["hs"] = stego
             st.image(stego, caption="Citra Stego (HS)", use_column_width=True)
             st.download_button("Download Hasil", image_to_bytes(stego), "hs_stego.png")
 
         if st.button("Extract HS"):
-            extracted = hs_extract(img)
-            st.success(extracted)
+            if "hs" in st.session_state:
+                extracted = hs_extract(st.session_state["hs"])
+                st.success(extracted)
+            else:
+                st.error("Belum ada citra stego!")
 
     # ----------------------------------------------------------
     # TAB 3 — PVD
@@ -221,9 +223,13 @@ if uploaded:
 
         if st.button("Embed PVD"):
             stego = pvd_embed(img, text)
+            st.session_state["pvd"] = stego
             st.image(stego, caption="Citra Stego (PVD)", use_column_width=True)
             st.download_button("Download Hasil", image_to_bytes(stego), "pvd_stego.png")
 
         if st.button("Extract PVD"):
-            extracted = "".join(list(pvd_extract(img)))
-            st.success(extracted)
+            if "pvd" in st.session_state:
+                extracted = "".join(list(pvd_extract(st.session_state["pvd"])))
+                st.success(extracted)
+            else:
+                st.error("Belum ada citra stego!")
