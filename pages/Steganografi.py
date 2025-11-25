@@ -240,7 +240,13 @@ if uploaded:
         
         with col2:
             if st.button("Extract LSB", key="extract_lsb"):
-                extracted = lsb_extract(img)
+                # jika ada stego dalam session_state (hasil embed)
+                if "lsb" in st.session_state:
+                    stego = bytes_to_image(st.session_state["lsb"])
+                else:
+                    stego = img  # gunakan gambar upload
+        
+                extracted = lsb_extract(stego)
                 st.success(extracted)
 
     # ----------------------------------------------------------
@@ -261,10 +267,13 @@ if uploaded:
         with col2:
             if st.button("Extract HS", key="extract_hs"):
                 if "hs" in st.session_state:
-                    extracted = hs_extract(img)
-                    st.success(extracted)
-
-
+                    stego = bytes_to_image(st.session_state["hs"])
+                else:
+                    stego = img  # fallback ke upload
+                
+                extracted = hs_extract(stego)
+                st.success(extracted)
+                
     # ----------------------------------------------------------
     # TAB 3 — PVD
     # ----------------------------------------------------------
@@ -283,7 +292,12 @@ if uploaded:
         with col2:
             if st.button("Extract PVD", key="extract_pvd"):
                 if "pvd" in st.session_state:
-                    extracted = pvd_extract(img)
-                    st.success(extracted)
+                    stego = bytes_to_image(st.session_state["pvd"])
+                else:
+                    stego = img
+        
+                extracted = pvd_extract(stego)
+                st.success(extracted)
+
 
 
