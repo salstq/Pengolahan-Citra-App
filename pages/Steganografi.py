@@ -272,16 +272,21 @@ if uploaded:
     # ----------------------------------------------------------
     with tab3:
         st.header("PVD Steganografi (Blue Channel)")
+    
+        col1, col2 = st.columns(2)
+    
+        with col1:
+            if st.button("Embed PVD", key="embed_pvd"):
+                stego = pvd_embed(img, text)
+                st.session_state["pvd"] = stego
+                st.image(stego, caption="Citra Stego (PVD)", use_column_width=True)
+                st.download_button("Download Hasil", image_to_bytes(stego), "pvd_stego.png", key="dl_pvd")
+    
+        with col2:
+            if st.button("Extract PVD", key="extract_pvd"):
+                if "pvd" in st.session_state:
+                    extracted = pvd_extract(st.session_state["pvd"])
+                    st.success(extracted)
+                else:
+                    st.error("Belum ada citra stego!")
 
-        if st.button("Embed PVD"):
-            stego = pvd_embed(img, text)
-            st.session_state["pvd"] = stego
-            st.image(stego, caption="Citra Stego (PVD)", use_column_width=True)
-            st.download_button("Download Hasil", image_to_bytes(stego), "pvd_stego.png")
-
-        if st.button("Extract PVD"):
-            if "pvd" in st.session_state:
-                extracted = "".join(list(pvd_extract(st.session_state["pvd"])))
-                st.success(extracted)
-            else:
-                st.error("Belum ada citra stego!")
