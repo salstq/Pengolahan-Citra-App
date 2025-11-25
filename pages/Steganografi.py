@@ -13,6 +13,9 @@ def image_to_bytes(img):
     img.save(buf, format='PNG')
     return buf.getvalue()
 
+def bytes_to_image(b):
+    return Image.open(io.BytesIO(b))
+
 def to_uint8(arr):
     return np.clip(arr, 0, 255).astype(np.uint8)
 
@@ -231,14 +234,15 @@ if uploaded:
         with col1:
             if st.button("Embed LSB", key="embed_lsb"):
                 stego = lsb_embed(img, text)
-                st.session_state["lsb"] = stego
+                st.session_state["lsb"] = image_to_bytes(stego)
                 st.image(stego, caption="Citra Stego (LSB)", use_column_width=True)
                 st.download_button("Download Hasil", image_to_bytes(stego), "lsb_stego.png", key="dl_lsb")
         
         with col2:
             if st.button("Extract LSB", key="extract_lsb"):
                 if "lsb" in st.session_state:
-                    extracted = lsb_extract(st.session_state["lsb"])
+                    stego_img = bytes_to_image(st.session_state["lsb"])
+                    extracted = lsb_extract(stego_img)
                     st.success(extracted)
                 else:
                     st.error("Belum ada citra stego!")
@@ -254,14 +258,15 @@ if uploaded:
         with col1:
             if st.button("Embed HS", key="embed_hs"):
                 stego = hs_embed(img, text)
-                st.session_state["hs"] = stego
+                st.session_state["hs"] = image_to_bytes(stego)
                 st.image(stego, caption="Citra Stego (HS)", use_column_width=True)
                 st.download_button("Download Hasil", image_to_bytes(stego), "hs_stego.png", key="dl_hs")
         
         with col2:
             if st.button("Extract HS", key="extract_hs"):
                 if "hs" in st.session_state:
-                    extracted = hs_extract(st.session_state["hs"])
+                    stego_img = bytes_to_image(st.session_state["hs"])
+                    extracted = hs_extract(stego_img)
                     st.success(extracted)
                 else:
                     st.error("Belum ada citra stego!")
@@ -278,14 +283,15 @@ if uploaded:
         with col1:
             if st.button("Embed PVD", key="embed_pvd"):
                 stego = pvd_embed(img, text)
-                st.session_state["pvd"] = stego
+                st.session_state["pvd"] = image_to_bytes(stego)
                 st.image(stego, caption="Citra Stego (PVD)", use_column_width=True)
                 st.download_button("Download Hasil", image_to_bytes(stego), "pvd_stego.png", key="dl_pvd")
     
         with col2:
             if st.button("Extract PVD", key="extract_pvd"):
                 if "pvd" in st.session_state:
-                    extracted = pvd_extract(st.session_state["pvd"])
+                    stego_img = bytes_to_image(st.session_state["pvd"])
+                    extracted = pvd_extract(stego_img)
                     st.success(extracted)
                 else:
                     st.error("Belum ada citra stego!")
