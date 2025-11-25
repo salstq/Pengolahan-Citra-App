@@ -240,12 +240,8 @@ if uploaded:
         
         with col2:
             if st.button("Extract LSB", key="extract_lsb"):
-                if "lsb" in st.session_state:
-                    stego_img = bytes_to_image(st.session_state["lsb"])
-                    extracted = lsb_extract(stego_img)
-                    st.success(extracted)
-                else:
-                    st.error("Belum ada citra stego!")
+                extracted = lsb_extract(img)
+                st.success(extracted)
 
     # ----------------------------------------------------------
     # TAB 2 — HISTOGRAM SHIFTING
@@ -265,11 +261,8 @@ if uploaded:
         with col2:
             if st.button("Extract HS", key="extract_hs"):
                 if "hs" in st.session_state:
-                    stego_img = bytes_to_image(st.session_state["hs"])
-                    extracted = hs_extract(stego_img)
+                    extracted = hs_extract(img)
                     st.success(extracted)
-                else:
-                    st.error("Belum ada citra stego!")
 
 
     # ----------------------------------------------------------
@@ -290,9 +283,7 @@ if uploaded:
         with col2:
             if st.button("Extract PVD", key="extract_pvd"):
                 if "pvd" in st.session_state:
-                    stego_img = bytes_to_image(st.session_state["pvd"])
-                    extracted = pvd_extract(stego_img)
+                    extracted = pvd_extract(img)
                     st.success(extracted)
-                else:
-                    st.error("Belum ada citra stego!")
+
 
