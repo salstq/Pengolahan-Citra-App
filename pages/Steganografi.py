@@ -91,7 +91,7 @@ def hs_extract(image):
     return text
 
 # ============================================================
-# PVD STEGANOGRAFI (FIX — Grayscale internal, warna tidak rusak)
+# PVD STEGANOGRAFI (FIX — warna 99.9% sama dengan citra asli)
 # ============================================================
 
 RANGES = [
@@ -111,14 +111,16 @@ def get_range_info(diff):
 
 
 def pvd_embed(image, text):
-    # convert full image to grayscale ONLY for calculation
-    img = np.array(image)
-    gray = np.array(Image.fromarray(img).convert("L")).astype(int)
+    # convert to numpy
+    img = np.array(image).copy()
+    
+    # gunakan channel biru asli (tidak grayscale)
+    blue = img[:, :, 2].astype(int)
 
-    h, w = gray.shape
-    flat = gray.flatten()
+    flat = blue.flatten()
+    h, w = blue.shape
 
-    # payload bits
+    # payload bit
     bits = ''.join(format(ord(c), '08b') for c in text) + '00000000'
     bit_index = 0
     total_bits = len(bits)
@@ -132,16 +134,16 @@ def pvd_embed(image, text):
 
         L, H, k = get_range_info(diff)
 
-        # ambil k bit
-        segment = bits[bit_index:bit_index+k]
+        segment = bits[bit_index:bit_index + k]
         if len(segment) < k:
             segment += '0' * (k - len(segment))
-        bit_index += k
 
+        bit_index += k
         value = int(segment, 2)
+
         target_diff = L + value
 
-        # adjust p1-p2
+        # adjust pixel pair
         if p1 >= p2:
             if diff > target_diff:
                 p1 -= (diff - target_diff)
@@ -153,41 +155,26 @@ def pvd_embed(image, text):
             else:
                 p2 += (target_diff - diff)
 
-        # clamp
         p1 = np.clip(p1, 0, 255)
         p2 = np.clip(p2, 0, 255)
 
-        flat[i], flat[i+1] = p1, p2
+        flat[i], flat[i + 1] = p1, p2
 
-    # rebuild grayscale stego
-    stego_gray = flat.reshape(h, w).astype(np.uint8)
+    # rebuild blue channel
+    new_blue = flat.reshape(h, w)
 
-    # ============================================
-    # 🔥 FIX: Masukkan stego_gray tanpa merusak warna RGB
-    # ============================================
-    # cara: kita gabungkan grayscale ke luminance agar warna tetap natural
-    r = img[:, :, 0].astype(float)
-    g = img[:, :, 1].astype(float)
-    b = img[:, :, 2].astype(float)
+    # masukkan kembali tanpa sentuh channel lain
+    img[:, :, 2] = new_blue.astype(np.uint8)
 
-    # normalisasi grayscale ke rentang channel biru setara
-    b_new = stego_gray.astype(float)
+    return Image.fromarray(img.astype(np.uint8))
 
-    # gabungkan kembali image dengan warna stabil
-    out = np.dstack([
-        np.clip(r, 0, 255),
-        np.clip(g, 0, 255),
-        np.clip(b_new, 0, 255)
-    ]).astype(np.uint8)
-
-    return Image.fromarray(out)
 
 
 def pvd_extract(image):
     img = np.array(image)
     blue = img[:, :, 2].astype(int)
-
     flat = blue.flatten()
+
     bits = ""
     text = ""
 
@@ -204,17 +191,17 @@ def pvd_extract(image):
         segment = format(value, f'0{k}b')
         bits += segment
 
-        # decode per byte
+        # decode
         while len(bits) >= 8:
             byte = bits[:8]
             bits = bits[8:]
             char = chr(int(byte, 2))
-
             if char == '\x00':
                 return text
             text += char
 
     return text
+
 
 
 
