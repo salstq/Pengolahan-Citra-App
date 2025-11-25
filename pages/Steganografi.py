@@ -225,16 +225,16 @@ if uploaded:
     # ----------------------------------------------------------
     with tab1:
         st.header("LSB Steganografi")
-    
+        
         col1, col2 = st.columns(2)
-
+        
         with col1:
             if st.button("Embed LSB", key="embed_lsb"):
                 stego = lsb_embed(img, text)
                 st.session_state["lsb"] = stego
                 st.image(stego, caption="Citra Stego (LSB)", use_column_width=True)
                 st.download_button("Download Hasil", image_to_bytes(stego), "lsb_stego.png", key="dl_lsb")
-    
+        
         with col2:
             if st.button("Extract LSB", key="extract_lsb"):
                 if "lsb" in st.session_state:
@@ -246,18 +246,18 @@ if uploaded:
     # ----------------------------------------------------------
     # TAB 2 — HISTOGRAM SHIFTING
     # ----------------------------------------------------------
-     with tab2:
+    with tab2:
         st.header("Histogram Shifting (Blue Channel)")
-    
+        
         col1, col2 = st.columns(2)
-    
+        
         with col1:
             if st.button("Embed HS", key="embed_hs"):
                 stego = hs_embed(img, text)
                 st.session_state["hs"] = stego
                 st.image(stego, caption="Citra Stego (HS)", use_column_width=True)
                 st.download_button("Download Hasil", image_to_bytes(stego), "hs_stego.png", key="dl_hs")
-    
+        
         with col2:
             if st.button("Extract HS", key="extract_hs"):
                 if "hs" in st.session_state:
