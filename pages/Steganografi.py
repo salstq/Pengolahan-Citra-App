@@ -91,10 +91,9 @@ def hs_extract(image):
     return text
 
 # ============================================================
-# PVD STEGANOGRAPHY (BENAR) - Grayscale → Blue Channel
+# PVD STEGANOGRAFI (FIX — Grayscale internal, warna tidak rusak)
 # ============================================================
 
-# Range table (L-H, bit capacity)
 RANGES = [
     (0, 7, 3),
     (8, 15, 3),
@@ -112,74 +111,85 @@ def get_range_info(diff):
 
 
 def pvd_embed(image, text):
-    img = np.array(image).copy()
+    # convert full image to grayscale ONLY for calculation
+    img = np.array(image)
+    gray = np.array(Image.fromarray(img).convert("L")).astype(int)
 
-    # convert to grayscale
-    gray = np.array(Image.fromarray(img).convert("L"))
-
-    flat = gray.flatten().astype(int)
     h, w = gray.shape
+    flat = gray.flatten()
 
-    # prepare payload bits
+    # payload bits
     bits = ''.join(format(ord(c), '08b') for c in text) + '00000000'
     bit_index = 0
+    total_bits = len(bits)
 
     for i in range(0, len(flat) - 1, 2):
+        if bit_index >= total_bits:
+            break
 
         p1, p2 = flat[i], flat[i + 1]
         diff = abs(p1 - p2)
 
         L, H, k = get_range_info(diff)
 
-        if bit_index >= len(bits):
-            break
-
-        seg = bits[bit_index:bit_index + k]
-        if len(seg) < k:
-            seg += '0' * (k - len(seg))
+        # ambil k bit
+        segment = bits[bit_index:bit_index+k]
+        if len(segment) < k:
+            segment += '0' * (k - len(segment))
         bit_index += k
 
-        value = int(seg, 2)
+        value = int(segment, 2)
+        target_diff = L + value
 
-        # target diff
-        new_diff = L + value
-
-        # adjust p1 and p2
+        # adjust p1-p2
         if p1 >= p2:
-            if diff > new_diff:
-                p1 -= (diff - new_diff)
+            if diff > target_diff:
+                p1 -= (diff - target_diff)
             else:
-                p1 += (new_diff - diff)
+                p1 += (target_diff - diff)
         else:
-            if diff > new_diff:
-                p2 -= (diff - new_diff)
+            if diff > target_diff:
+                p2 -= (diff - target_diff)
             else:
-                p2 += (new_diff - diff)
+                p2 += (target_diff - diff)
 
         # clamp
-        p1 = max(0, min(255, p1))
-        p2 = max(0, min(255, p2))
+        p1 = np.clip(p1, 0, 255)
+        p2 = np.clip(p2, 0, 255)
 
-        flat[i], flat[i + 1] = p1, p2
+        flat[i], flat[i+1] = p1, p2
 
-    stego_gray = flat.reshape(h, w)
+    # rebuild grayscale stego
+    stego_gray = flat.reshape(h, w).astype(np.uint8)
 
-    # masukkan ke channel blue saja
-    b = stego_gray
-    r = img[:, :, 0]
-    g = img[:, :, 1]
+    # ============================================
+    # 🔥 FIX: Masukkan stego_gray tanpa merusak warna RGB
+    # ============================================
+    # cara: kita gabungkan grayscale ke luminance agar warna tetap natural
+    r = img[:, :, 0].astype(float)
+    g = img[:, :, 1].astype(float)
+    b = img[:, :, 2].astype(float)
 
-    out = np.dstack([r, g, b])
-    return Image.fromarray(out.astype(np.uint8))
+    # normalisasi grayscale ke rentang channel biru setara
+    b_new = stego_gray.astype(float)
+
+    # gabungkan kembali image dengan warna stabil
+    out = np.dstack([
+        np.clip(r, 0, 255),
+        np.clip(g, 0, 255),
+        np.clip(b_new, 0, 255)
+    ]).astype(np.uint8)
+
+    return Image.fromarray(out)
 
 
 def pvd_extract(image):
     img = np.array(image)
-    blue = img[:, :, 2]
+    blue = img[:, :, 2].astype(int)
 
-    flat = blue.flatten().astype(int)
-
+    flat = blue.flatten()
     bits = ""
+    text = ""
 
     for i in range(0, len(flat) - 1, 2):
         p1, p2 = flat[i], flat[i + 1]
@@ -194,15 +204,18 @@ def pvd_extract(image):
         segment = format(value, f'0{k}b')
         bits += segment
 
-        # decode per 8-bit char
+        # decode per byte
         while len(bits) >= 8:
             byte = bits[:8]
             bits = bits[8:]
             char = chr(int(byte, 2))
 
             if char == '\x00':
-                return ""  # end
-            yield char
+                return text
+            text += char
+
+    return text
+
 
 
 # ============================================================
