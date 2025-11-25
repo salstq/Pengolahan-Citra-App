@@ -3,214 +3,227 @@ import numpy as np
 from PIL import Image
 import io
 
-st.set_page_config(page_title="Aplikasi Steganografi", layout="wide")
-st.title("🕵️‍♂️ Aplikasi Steganografi Teks (LSB, Histogram Shifting, PVD)")
+st.set_page_config(page_title="Steganografi - Salsa", layout="wide")
 
-# =================================================================
-# ===================== 1. FUNGSI LSB ==============================
-# =================================================================
+# ============================================================
+# Utility
+# ============================================================
+def image_to_bytes(img):
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    return buf.getvalue()
 
-def embed_lsb(image, message):
-    img = np.array(image)
-    flat = img.flatten()
+def to_uint8(arr):
+    return np.clip(arr, 0, 255).astype(np.uint8)
 
-    # Ubah teks ke biner
-    binary_msg = ''.join([format(ord(c), '08b') for c in message])
-    binary_msg += "0000000000000000"   # tanda selesai (2 byte null)
+# ============================================================
+# LSB EMBED & EXTRACT
+# ============================================================
+def lsb_embed(image, text):
+    img = np.array(image).copy()
+    flat = img.reshape(-1, 3)
 
-    if len(binary_msg) > len(flat):
-        raise ValueError("Pesan terlalu besar untuk disisipkan!")
+    bits = ''.join([format(ord(c), '08b') for c in text])
+    bits += '00000000'  # terminator
 
-    for i in range(len(binary_msg)):
-        flat[i] = (flat[i] & 0xFE) | int(binary_msg[i])
+    if len(bits) > len(flat):
+        raise ValueError("Payload terlalu besar!")
+
+    for i, bit in enumerate(bits):
+        flat[i][2] = (flat[i][2] & 0xFE) | int(bit)
 
     stego = flat.reshape(img.shape)
-    return Image.fromarray(stego.astype(np.uint8))
+    return Image.fromarray(stego)
 
-
-def extract_lsb(image):
+def lsb_extract(image):
     img = np.array(image)
-    flat = img.flatten()
+    flat = img.reshape(-1, 3)
+    bits = ""
+    text = ""
+
+    for pixel in flat:
+        bits += str(pixel[2] & 1)
+        if len(bits) == 8:
+            char = chr(int(bits, 2))
+            if char == '\x00':
+                break
+            text += char
+            bits = ""
+    return text
+
+# ============================================================
+# HISTOGRAM SHIFTING (BLUE CHANNEL)
+# ============================================================
+def hs_embed(image, text):
+    img = np.array(image).copy()
+    blue = img[:, :, 2]
+
+    h, w = blue.shape
+    flat = blue.flatten()
+
+    bits = ''.join([format(ord(c), '08b') for c in text]) + '00000000'
+    if len(bits) > len(flat):
+        raise ValueError("Payload terlalu besar!")
+
+    # shift all blue pixel values
+    flat = np.where(flat > 200, flat, flat + 1)
+
+    # embed in LSB
+    for i, bit in enumerate(bits):
+        flat[i] = (flat[i] & 0xFE) | int(bit)
+
+    img[:, :, 2] = flat.reshape(h, w)
+    return Image.fromarray(to_uint8(img))
+
+def hs_extract(image):
+    img = np.array(image)
+    flat = img[:, :, 2].flatten()
 
     bits = ""
-    for p in flat:
-        bits += str(p & 1)
+    text = ""
 
-    chars = []
-    for i in range(0, len(bits), 8):
-        byte = bits[i:i+8]
-        if byte == "00000000":
-            break
-        chars.append(chr(int(byte, 2)))
+    for v in flat:
+        bits += str(v & 1)
+        if len(bits) == 8:
+            char = chr(int(bits, 2))
+            if char == '\x00':
+                break
+            text += char
+            bits = ""
+    return text
 
-    return ''.join(chars)
+# ============================================================
+# PVD STEGANOGRAPHY (BLUE CHANNEL)
+# ============================================================
+def pvd_embed(image, text):
+    img = np.array(image).copy()
+    blue = img[:, :, 2]
 
+    h, w = blue.shape
+    flat = blue.flatten()
 
-# =================================================================
-# ================ 2. HISTOGRAM SHIFTING ===========================
-# =================================================================
+    bits = ''.join([format(ord(c), '08b') for c in text]) + '00000000'
+    bit_index = 0
 
-def embed_histogram_shifting(image, message):
-    img = np.array(image).astype(int)
-    h, w, c = img.shape
-
-    binary_msg = ''.join([format(ord(c), '08b') for c in message]) + "00000000"
-    msg_idx = 0
-
-    stego = img.copy()
-
-    # ambil channel R saja agar sederhana
-    channel = stego[:,:,0].flatten()
-
-    for i in range(len(channel)):
-        if msg_idx >= len(binary_msg):
+    for i in range(0, len(flat) - 1, 2):
+        if bit_index >= len(bits):
             break
 
-        if binary_msg[msg_idx] == "1":
-            channel[i] += 1  # shift histogram
-        msg_idx += 1
+        p1, p2 = flat[i], flat[i + 1]
+        diff = abs(int(p1) - int(p2))
 
-    stego[:,:,0] = channel.reshape(h, w)
-    return Image.fromarray(stego.clip(0,255).astype(np.uint8))
-
-
-def extract_histogram_shifting(image):
-    img = np.array(image).astype(int)
-    channel = img[:,:,0].flatten()
-
-    bits = []
-
-    for val in channel:
-        if val % 2 == 1:
-            bits.append("1")
+        # determine number of bits can embed
+        if diff < 16:
+            k = 3
+        elif diff < 32:
+            k = 4
         else:
-            bits.append("0")
+            k = 5
 
-    # ubah ke teks
-    chars = []
-    for i in range(0, len(bits), 8):
-        byte = ''.join(bits[i:i+8])
-        if byte == "00000000":
-            break
-        chars.append(chr(int(byte,2)))
+        segment = bits[bit_index:bit_index + k]
+        if len(segment) < k:
+            segment += '0' * (k - len(segment))
 
-    return ''.join(chars)
+        bit_index += k
+        value = int(segment, 2)
 
+        # modify p1 to encode
+        if p1 > p2:
+            p1_new = p1 + value
+        else:
+            p1_new = p1 - value
 
-# =================================================================
-# ====================== 3. PVD METHOD =============================
-# =================================================================
+        flat[i] = np.clip(p1_new, 0, 255)
 
-def embed_pvd(image, message):
+    img[:, :, 2] = flat.reshape(h, w)
+    return Image.fromarray(to_uint8(img))
+
+def pvd_extract(image):
     img = np.array(image)
-    h, w, c = img.shape
+    flat = img[:, :, 2].flatten()
 
-    binary_msg = ''.join([format(ord(c), '08b') for c in message]) + "00000000"
-    msg_idx = 0
+    bits = ""
 
-    stego = img.copy()
+    for i in range(0, len(flat) - 1, 2):
+        p1, p2 = flat[i], flat[i + 1]
+        diff = abs(int(p1) - int(p2))
 
-    # gunakan pasangan pixel pada channel R saja
-    pair = stego[:,:,0].flatten()
-
-    for i in range(0, len(pair)-1, 2):
-        if msg_idx >= len(binary_msg):
-            break
-
-        p1 = pair[i]
-        p2 = pair[i+1]
-
-        d = abs(p2 - p1)
-        b = int(binary_msg[msg_idx])   # ambil 1 bit
-
-        if b == 1:
-            d += 1
+        # bits based on diff range
+        if diff < 16:
+            k = 3
+        elif diff < 32:
+            k = 4
         else:
-            d -= 1
+            k = 5
 
-        # update p2
-        if p2 >= p1:
-            p2 = p1 + d
-        else:
-            p2 = p1 - d
+        val = abs(int(p1) - int(p2))
+        segment = format(val, f'0{k}b')
+        bits += segment
 
-        pair[i+1] = max(0, min(255, p2))
-        msg_idx += 1
+        # decode when enough for 8 bits
+        if len(bits) >= 8:
+            char = chr(int(bits[:8], 2))
+            bits = bits[8:]
+            if char == '\x00':
+                break
+            yield char
 
-    stego[:,:,0] = pair.reshape(h, w)
-    return Image.fromarray(stego.astype(np.uint8))
-
-
-def extract_pvd(image):
-    img = np.array(image)
-    pair = img[:,:,0].flatten()
-
-    bits = []
-
-    for i in range(0, len(pair)-1, 2):
-        p1 = pair[i]
-        p2 = pair[i+1]
-        d = abs(p2 - p1)
-
-        bits.append("1" if d % 2 == 1 else "0")
-
-    chars = []
-    for i in range(0, len(bits), 8):
-        byte = ''.join(bits[i:i+8])
-        if byte == "00000000":
-            break
-        chars.append(chr(int(byte,2)))
-
-    return ''.join(chars)
-
-
-# =================================================================
-# ======================== STREAMLIT UI =============================
-# =================================================================
-
-st.sidebar.header("Pilih Metode Steganografi")
-metode = st.sidebar.selectbox(
-    "Metode Steganografi",
-    ["LSB", "Histogram Shifting", "PVD"],
-)
-
-mode = st.sidebar.radio("Mode", ["Embed (Sisipkan Teks)", "Extract (Ambil Teks)"])
+# ============================================================
+# STREAMLIT UI
+# ============================================================
+st.title("🕵️ Steganografi Citra (LSB • Histogram Shifting • PVD) – RGB")
 
 uploaded = st.file_uploader("Upload Gambar", type=["png", "jpg", "jpeg"])
 
 if uploaded:
     img = Image.open(uploaded).convert("RGB")
+    st.image(img, caption="Citra Awal", use_column_width=True)
 
-    st.subheader("Citra Asli")
-    st.image(img, use_container_width=True)
+    text = st.text_area("Teks yang akan disisipkan:")
 
-    if mode == "Embed (Sisipkan Teks)":
-        text = st.text_area("Masukkan Teks Rahasia")
+    tab1, tab2, tab3 = st.tabs(["🔵 LSB", "🟣 Histogram Shifting", "🟢 PVD"])
 
-        if st.button("Sisipkan Teks"):
-            if metode == "LSB":
-                stego = embed_lsb(img, text)
-            elif metode == "Histogram Shifting":
-                stego = embed_histogram_shifting(img, text)
-            else:
-                stego = embed_pvd(img, text)
+    # ----------------------------------------------------------
+    # TAB 1 — LSB
+    # ----------------------------------------------------------
+    with tab1:
+        st.header("LSB Steganografi")
 
-            st.subheader("Citra Hasil Steganografi")
-            st.image(stego, use_container_width=True)
+        if st.button("Embed LSB"):
+            stego = lsb_embed(img, text)
+            st.image(stego, caption="Citra Stego (LSB)", use_column_width=True)
+            st.download_button("Download Hasil", image_to_bytes(stego), "lsb_stego.png")
 
-            # download button
-            buf = io.BytesIO()
-            stego.save(buf, format="PNG")
-            st.download_button("Download Stego Image", buf.getvalue(), file_name="stego.png")
+        if st.button("Extract LSB"):
+            extracted = lsb_extract(img)
+            st.success(extracted)
 
-    else:
-        if st.button("Ekstrak Teks"):
-            if metode == "LSB":
-                result = extract_lsb(img)
-            elif metode == "Histogram Shifting":
-                result = extract_histogram_shifting(img)
-            else:
-                result = extract_pvd(img)
+    # ----------------------------------------------------------
+    # TAB 2 — HISTOGRAM SHIFTING
+    # ----------------------------------------------------------
+    with tab2:
+        st.header("Histogram Shifting (Blue Channel)")
 
-            st.success("Teks berhasil diambil:")
-            st.code(result)
+        if st.button("Embed HS"):
+            stego = hs_embed(img, text)
+            st.image(stego, caption="Citra Stego (HS)", use_column_width=True)
+            st.download_button("Download Hasil", image_to_bytes(stego), "hs_stego.png")
+
+        if st.button("Extract HS"):
+            extracted = hs_extract(img)
+            st.success(extracted)
+
+    # ----------------------------------------------------------
+    # TAB 3 — PVD
+    # ----------------------------------------------------------
+    with tab3:
+        st.header("PVD Steganografi (Blue Channel)")
+
+        if st.button("Embed PVD"):
+            stego = pvd_embed(img, text)
+            st.image(stego, caption="Citra Stego (PVD)", use_column_width=True)
+            st.download_button("Download Hasil", image_to_bytes(stego), "pvd_stego.png")
+
+        if st.button("Extract PVD"):
+            extracted = "".join(list(pvd_extract(img)))
+            st.success(extracted)
