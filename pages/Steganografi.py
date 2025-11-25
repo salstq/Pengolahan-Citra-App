@@ -91,76 +91,119 @@ def hs_extract(image):
     return text
 
 # ============================================================
-# PVD STEGANOGRAPHY (BLUE CHANNEL)
+# PVD STEGANOGRAPHY (BENAR) - Grayscale → Blue Channel
 # ============================================================
+
+# Range table (L-H, bit capacity)
+RANGES = [
+    (0, 7, 3),
+    (8, 15, 3),
+    (16, 31, 4),
+    (32, 63, 5),
+    (64, 127, 6),
+    (128, 255, 7)
+]
+
+def get_range_info(diff):
+    for L, H, k in RANGES:
+        if L <= diff <= H:
+            return L, H, k
+    return 0, 7, 3
+
+
 def pvd_embed(image, text):
     img = np.array(image).copy()
-    blue = img[:, :, 2]
 
-    h, w = blue.shape
-    flat = blue.flatten()
+    # convert to grayscale
+    gray = np.array(Image.fromarray(img).convert("L"))
 
-    bits = ''.join([format(ord(c), '08b') for c in text]) + '00000000'
+    flat = gray.flatten().astype(int)
+    h, w = gray.shape
+
+    # prepare payload bits
+    bits = ''.join(format(ord(c), '08b') for c in text) + '00000000'
     bit_index = 0
 
     for i in range(0, len(flat) - 1, 2):
+
+        p1, p2 = flat[i], flat[i + 1]
+        diff = abs(p1 - p2)
+
+        L, H, k = get_range_info(diff)
+
         if bit_index >= len(bits):
             break
 
-        p1, p2 = flat[i], flat[i + 1]
-        diff = abs(int(p1) - int(p2))
-
-        if diff < 16:
-            k = 3
-        elif diff < 32:
-            k = 4
-        else:
-            k = 5
-
-        segment = bits[bit_index:bit_index + k]
-        if len(segment) < k:
-            segment += '0' * (k - len(segment))
-
+        seg = bits[bit_index:bit_index + k]
+        if len(seg) < k:
+            seg += '0' * (k - len(seg))
         bit_index += k
-        value = int(segment, 2)
 
-        if p1 > p2:
-            p1_new = p1 + value
+        value = int(seg, 2)
+
+        # target diff
+        new_diff = L + value
+
+        # adjust p1 and p2
+        if p1 >= p2:
+            if diff > new_diff:
+                p1 -= (diff - new_diff)
+            else:
+                p1 += (new_diff - diff)
         else:
-            p1_new = p1 - value
+            if diff > new_diff:
+                p2 -= (diff - new_diff)
+            else:
+                p2 += (new_diff - diff)
 
-        flat[i] = np.clip(p1_new, 0, 255)
+        # clamp
+        p1 = max(0, min(255, p1))
+        p2 = max(0, min(255, p2))
 
-    img[:, :, 2] = flat.reshape(h, w)
-    return Image.fromarray(to_uint8(img))
+        flat[i], flat[i + 1] = p1, p2
+
+    stego_gray = flat.reshape(h, w)
+
+    # masukkan ke channel blue saja
+    b = stego_gray
+    r = img[:, :, 0]
+    g = img[:, :, 1]
+
+    out = np.dstack([r, g, b])
+    return Image.fromarray(out.astype(np.uint8))
+
 
 def pvd_extract(image):
     img = np.array(image)
-    flat = img[:, :, 2].flatten()
+    blue = img[:, :, 2]
+
+    flat = blue.flatten().astype(int)
 
     bits = ""
 
     for i in range(0, len(flat) - 1, 2):
         p1, p2 = flat[i], flat[i + 1]
-        diff = abs(int(p1) - int(p2))
+        diff = abs(p1 - p2)
 
-        if diff < 16:
-            k = 3
-        elif diff < 32:
-            k = 4
-        else:
-            k = 5
+        L, H, k = get_range_info(diff)
 
-        val = abs(int(p1) - int(p2))
-        segment = format(val, f'0{k}b')
+        value = diff - L
+        if value < 0:
+            continue
+
+        segment = format(value, f'0{k}b')
         bits += segment
 
-        if len(bits) >= 8:
-            char = chr(int(bits[:8], 2))
+        # decode per 8-bit char
+        while len(bits) >= 8:
+            byte = bits[:8]
             bits = bits[8:]
+            char = chr(int(byte, 2))
+
             if char == '\x00':
-                break
+                return ""  # end
             yield char
+
 
 # ============================================================
 # STREAMLIT UI
